@@ -35,4 +35,4 @@ API keys and sensitive configuration are stored in environment variables and are
 
 ## Status
 
-Project under development.
+Project is ready and is being actively used
