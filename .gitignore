@@ -1,0 +1,21 @@
+# Virtual environment
+venv/
+.venv/
+
+# API keys
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+.idea/
+
+# Reports
+analytics_report.pptx
+
+# Excluded modules
+Dict_names.py
+AI.py
+Employees.py
