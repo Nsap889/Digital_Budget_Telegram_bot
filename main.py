@@ -280,7 +280,7 @@ def DB_data(site: str, max_retries=3):
 @bot.message_handler(content_types=['text'])
 def handle_text(message):
 
-    # РЕЖИМ ТЕХНИЧЕСКИХ РАБОТ
+    # РЕЖИМ ТЕХНИЧЕСКИХ РАБОТ // ЗДЕСЬ ВКЛЮЧАЕМ РЕЖИМ ПРОФИЛАКТИЧЕСКИХ РАБОТ !!!
     MAINTENANCE_MODE = False
 
     if MAINTENANCE_MODE:
