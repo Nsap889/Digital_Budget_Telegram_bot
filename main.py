@@ -355,6 +355,7 @@ def handle_text(message):
 
                 bot.send_message(message.chat.id, '💾 Сохраняю Excel... Пару минут')
 
+                #папка куда склыдываются отчеты если не вышел ексельья
                 folder_path = 'X:/#Teams/Analytics/ResearchDocs/Insider_Data/NsapRequests/Digital_Budget_Reports'
                 os.makedirs(folder_path, exist_ok=True)
                 file_path = os.path.join(folder_path,
