@@ -1,0 +1,19 @@
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+BASE_DIR = Path(__file__).resolve().parent
+
+load_dotenv(BASE_DIR / ".env")
+
+DIGITAL_BUDGET_TOKEN = os.getenv("DIGITAL_BUDGET_TOKEN")
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TELEGRAM_BOT_TOKEN_ACCOINT_FOR_LOGGS = os.getenv("TELEGRAM_BOT_TOKEN_ACCOINT_FOR_LOGGS")
+TELEGRAM_BOT_TOKEN_ACCOINT_FOR_LOGGS_CHANNEL = os.getenv("TELEGRAM_BOT_TOKEN_ACCOINT_FOR_LOGGS_CHANNEL")
+DEEPSEEK_API_KEY=os.getenv("DEEPSEEK_API_KEY")
+
+#AI.py
+SQL_SERVER = os.getenv("SQL_SERVER")
+SQL_DATABASE = os.getenv("SQL_DATABASE")
+SQL_DRIVER = os.getenv("SQL_DRIVER")
+SQL_EMPLOYEE_TABLE = os.getenv("SQL_EMPLOYEE_TABLE")
