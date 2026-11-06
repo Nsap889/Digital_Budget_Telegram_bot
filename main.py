@@ -17,10 +17,16 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from urllib3.exceptions import InsecureRequestWarning
 import warnings
-import Dict_names
+#import Dict_names
 import config
 import AI
+import traceback
 
+import excel
+import gs
+import database
+import telegram_notification as tg
+import excel
 
 # Отключаем предупреждения о SSL
 warnings.filterwarnings('ignore', category=InsecureRequestWarning)
@@ -68,71 +74,12 @@ token=config.DIGITAL_BUDGET_TOKEN
 # Токен tg_бота
 bot = telebot.TeleBot(config.TELEGRAM_BOT_TOKEN)
 
-
-# Отправка сообщений в другой тг бот информатор
-def send_msg(text):
-    for attempt in range(3):
-        try:
-            token_bot = config.TELEGRAM_BOT_TOKEN_ACCOINT_FOR_LOGGS
-            chat_id = config.TELEGRAM_BOT_TOKEN_ACCOINT_FOR_LOGGS_CHANNEL
-            url_req = f"https://api.telegram.org/bot{token_bot}/sendMessage"
-            response = requests_session.get(url_req, params={"chat_id": chat_id, "text": text})
-            results = response.json()
-            print(results['result']['text'])
-            return
-        except Exception as e:
-            print(f"Ошибка отправки сообщения (попытка {attempt + 1}/3): {e}")
-            if attempt < 2:
-                time.sleep(2)
-            else:
-                print(f"Не удалось отправить сообщение: {text}")
-
-
 count = 0
 
 # Глобальные переменные
 Sites_list = []
 result = pd.DataFrame(
-    columns=['Site', 'Category', 'advertiser', 'siteStatus', 'isVerify',
-             'Date', 'kind', 'budget', 'visits', 'type'])
-
-
-# Подключение к SQL с обработкой ошибок
-def get_sql_connection():
-    for attempt in range(3):
-        try:
-            cnxn = pyodbc.connect(
-                f"Driver={config.SQL_DRIVER};"
-                f"Server={config.SQL_SERVER};"
-                f"Database={config.SQL_DATABASE};"
-                f"Trusted_Connection=yes;",
-                timeout=30
-            )
-            return cnxn
-        except Exception as e:
-            print(f"Ошибка подключения к SQL (попытка {attempt + 1}/3): {e}")
-            if attempt < 2:
-                time.sleep(2)
-            else:
-                raise
-    return None
-
-
-def sql_dates(request):
-    cnxn = None
-    try:
-        cnxn = get_sql_connection()
-        if cnxn:
-            cursor = cnxn.cursor()
-            cursor.execute(request)
-            cursor.commit()
-            cursor.close()
-    except Exception as e:
-        print(f"Ошибка выполнения SQL: {e}")
-    finally:
-        if cnxn:
-            cnxn.close()
-
+    columns=['Site', 'Category', 'advertiser', 'siteStatus', 'isVerify','Date', 'kind', 'budget', 'visits', 'type'])
 
 # Обработчик команды /start
 @bot.message_handler(commands=['start'])
@@ -316,22 +263,31 @@ def handle_text(message):
         if validation:
             bot.send_message(message.chat.id, '✅ Валидация сайтов пройдена')
 
-            if message.chat.id in Dict_names.Names.keys():
+            try:
+                gs.refresh_names()
+            except Exception as e:
+                print(f"Не удалось обновить список пользователей: {e}")
+
+
+            user_id = message.from_user.id
+            if user_id in gs.Names:
+                user_name, user_department = gs.Names[user_id]
+                database.log_bot_request(message.chat.id, message.text)
 
                 #Уведомление Пользователю кот выгружает:
-                bot.send_message(message.chat.id, '✅ Авторизация пройдена')
+                bot.send_message(message.chat.id, f'✅ Авторизация пройдена')
                 bot.send_message(message.chat.id, f'📋 Список уникальных сайтов для выгрузки - {Sites_list}')
                 bot.send_message(message.chat.id, f'🔢 Количество уникальных сайтов на входе - {len(Sites_list)}')
 
-                #Инсертим запрос в БД 39 сервер
-                Sql_request = f"""SET NOCOUNT ON
-                                insert into nsaprykin.telegram_bot_db values ({int(message.chat.id)},'{str((message.text))}','{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}')
-                                commit"""
+                #add to sql table data
+                database.log_bot_request(message.chat.id,message.text)
 
-
-                sql_dates(Sql_request)
-                send_msg(f"Digital_Budget - User: {Dict_names.Names[(message.chat.id)]}, Request: {str(message.text)}, Date: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-
+                tg.send_msg(
+                    f"Digital_Budget - User: {user_name}, "
+                    f"Department: {user_department}, "
+                    f"Request: {message.text}, "
+                    f"Date: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                )
                 def louncher():
                     for index_site, site in enumerate(Sites_list):
                         try:
@@ -354,16 +310,9 @@ def handle_text(message):
                         print(f'{i} - не выгружен')
 
                 bot.send_message(message.chat.id, '💾 Сохраняю Excel... Пару минут')
-
-                #папка куда склыдываются отчеты если не вышел ексель
-                folder_path = 'X:/#Teams/Analytics/ResearchDocs/Insider_Data/NsapRequests/Digital_Budget_Reports'
-                os.makedirs(folder_path, exist_ok=True)
-                file_path = os.path.join(folder_path,
-                                         f'Report_{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.xlsx')
-                result['Year'] = result['Date'].str[:4]
-                result['Month'] = result['Date'].str[5:7].astype(int)
-                result.to_excel(file_path, index=False)
-                bot.send_message(message.chat.id, f'📁 Файл сохранен: {file_path}')
+                bot.send_message(message.chat.id, '💾 Дублирую Excel на сервер...\n'
+                                                  'X:/#Teams/Analytics/ResearchDocs/Insider_Data/NsapRequests/Digital_Budget_Reports')
+                excel.excel_prepare(result)
 
                 #df = pd.read_excel(result)  # ваши данные
                 #DataFrame_input(df, output_path="analytics_report.pptx")
